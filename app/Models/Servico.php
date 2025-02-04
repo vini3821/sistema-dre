@@ -9,10 +9,20 @@ class Servico extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['mes', 'descricao', 'valor'];
+    protected $fillable = [
+        'mes',
+        'descricao',
+        'valor',
+        'sector_id'
+    ];
 
     protected $casts = [
         'valor' => 'decimal:2',
         'mes' => 'integer'
     ];
+
+    public function sector()
+    {
+        return $this->belongsTo(Sector::class);
+    }
 } 

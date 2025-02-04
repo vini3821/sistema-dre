@@ -5,9 +5,14 @@
 
 <x-app-layout>
     <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('Sistema DRE') }}
-        </h2>
+        <div class="flex items-center justify-between">
+            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+                {{ __('Sistema DRE') }} 
+                <span class="ml-2 px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">
+                    Setor: {{ $sectorName }}
+                </span>
+            </h2>
+        </div>
     </x-slot>
 
     <div class="py-12">
@@ -112,6 +117,23 @@
 
     <script>
         document.addEventListener("DOMContentLoaded", function () {
+            // Pegar o token CSRF uma vez
+            const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+
+            // Função para fazer requisições com configurações padrão
+            async function fetchWithConfig(url, options = {}) {
+                const defaultOptions = {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                        'Accept': 'application/json' // Importante: pede explicitamente JSON
+                    },
+                    credentials: 'same-origin' // Inclui cookies na requisição
+                };
+
+                return fetch(url, { ...defaultOptions, ...options });
+            }
+
             const tabelaGastos = document.querySelector("#tabela-gastos tbody");
             const tabelaServicos = document.querySelector("#tabela-servicos tbody");
             const botaoAdicionar = document.getElementById("add-item");
@@ -120,7 +142,7 @@
             function atualizarTabela() {
                 let mesSelecionado = selectMes.value;
                 
-                fetch(`/gastos/${mesSelecionado}`)
+                fetchWithConfig(`/gastos/${mesSelecionado}`)
                     .then(response => response.json())
                     .then(gastos => {
                         tabelaGastos.innerHTML = "";
@@ -169,7 +191,7 @@
             function atualizarTabelaServicos() {
                 let mesSelecionado = selectMes.value;
                 
-                fetch(`/servicos/${mesSelecionado}`)
+                fetchWithConfig(`/servicos/${mesSelecionado}`)
                     .then(response => response.json())
                     .then(servicos => {
                         tabelaServicos.innerHTML = "";
@@ -215,64 +237,52 @@
                     });
             }
 
-            // Novo evento para adicionar tanto gasto quanto serviço
-            botaoAdicionar.addEventListener("click", function () {
+            // Evento para adicionar novo item
+            botaoAdicionar.addEventListener("click", async function () {
                 let mesSelecionado = selectMes.value;
                 
-                // Adicionar gasto
-                fetch('/gastos', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                    },
-                    body: JSON.stringify({
-                        mes: mesSelecionado,
-                        descricao: "Novo Gasto",
-                        valor: 0.00
-                    })
-                })
-                .then(response => {
-                    if (!response.ok) {
-                        return response.json().then(err => Promise.reject(err));
-                    }
-                    return response.json();
-                })
-                .then(() => {
-                    atualizarTabela();
-                })
-                .catch(error => {
-                    console.error('Erro ao adicionar gasto:', error);
-                    alert("Erro ao adicionar o gasto: " + (error.message || 'Erro desconhecido'));
-                });
+                try {
+                    // Adicionar gasto
+                    const gastoResponse = await fetchWithConfig('/gastos', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            mes: parseInt(mesSelecionado),
+                            descricao: "Novo Gasto",
+                            valor: 0,
+                            sector_id: {{ auth()->user()->sector_id ?? 'null' }}
+                        })
+                    });
 
-                // Adicionar serviço
-                fetch('/servicos', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                    },
-                    body: JSON.stringify({
-                        mes: mesSelecionado,
-                        descricao: "Novo Serviço",
-                        valor: 0.00
-                    })
-                })
-                .then(response => {
-                    if (!response.ok) {
-                        return response.json().then(err => Promise.reject(err));
+                    if (!gastoResponse.ok) {
+                        const errorData = await gastoResponse.json();
+                        throw new Error(errorData.message || 'Erro ao criar gasto');
                     }
-                    return response.json();
-                })
-                .then(() => {
-                    atualizarTabelaServicos();
+
+                    // Adicionar serviço
+                    const servicoResponse = await fetchWithConfig('/servicos', {
+                        method: 'POST',
+                        body: JSON.stringify({
+                            mes: parseInt(mesSelecionado),
+                            descricao: "Novo Serviço",
+                            valor: 0,
+                            sector_id: {{ auth()->user()->sector_id ?? 'null' }}
+                        })
+                    });
+
+                    if (!servicoResponse.ok) {
+                        const errorData = await servicoResponse.json();
+                        throw new Error(errorData.message || 'Erro ao criar serviço');
+                    }
+
+                    // Atualizar ambas as tabelas
+                    await atualizarTabela();
+                    await atualizarTabelaServicos();
+                    
                     alert("Itens adicionados com sucesso!");
-                })
-                .catch(error => {
-                    console.error('Erro ao adicionar serviço:', error);
-                    alert("Erro ao adicionar o serviço: " + (error.message || 'Erro desconhecido'));
-                });
+                } catch (error) {
+                    console.error('Erro:', error);
+                    alert(error.message);
+                }
             });
 
             // Evento para mudar o mês
@@ -298,12 +308,8 @@
                         return;
                     }
 
-                    fetch(`/gastos/${gastoId}`, {
+                    fetchWithConfig(`/gastos/${gastoId}`, {
                         method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                        },
                         body: JSON.stringify({
                             descricao: descricao,
                             valor: valor
@@ -322,11 +328,8 @@
 
                 if (button.classList.contains("remove-gasto")) {
                     if (confirm("Tem certeza que deseja remover este gasto?")) {
-                        fetch(`/gastos/${gastoId}`, {
-                            method: 'DELETE',
-                            headers: {
-                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                            }
+                        fetchWithConfig(`/gastos/${gastoId}`, {
+                            method: 'DELETE'
                         })
                         .then(response => {
                             if (!response.ok) {
@@ -360,12 +363,8 @@
                         return;
                     }
 
-                    fetch(`/servicos/${servicoId}`, {
+                    fetchWithConfig(`/servicos/${servicoId}`, {
                         method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                        },
                         body: JSON.stringify({
                             descricao: descricao,
                             valor: valor
@@ -384,11 +383,8 @@
 
                 if (button.classList.contains("remove-servico")) {
                     if (confirm("Tem certeza que deseja remover este serviço?")) {
-                        fetch(`/servicos/${servicoId}`, {
-                            method: 'DELETE',
-                            headers: {
-                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                            }
+                        fetchWithConfig(`/servicos/${servicoId}`, {
+                            method: 'DELETE'
                         })
                         .then(response => {
                             if (!response.ok) {
