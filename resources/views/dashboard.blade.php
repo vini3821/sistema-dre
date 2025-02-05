@@ -50,12 +50,18 @@
                                 <tr class="bg-gray-200">
                                     <th class="border border-gray-300 px-4 py-2">Descrição</th>
                                     <th class="border border-gray-300 px-4 py-2">Valor</th>
+                                    <th class="border border-gray-300 px-4 py-2">Ações</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 <tr>
                                     <td class="border border-gray-300 px-4 py-2">Exemplo de gasto</td>
                                     <td class="border border-gray-300 px-4 py-2">R$ 100,00</td>
+                                    <td class="border border-gray-300 px-4 py-2 text-center">
+                                        <div class="flex space-x-2 justify-center action-buttons">
+                                            <!-- Os botões serão adicionados dinamicamente pelo JavaScript -->
+                                        </div>
+                                    </td>
                                 </tr>
                             </tbody>
                         </table>
@@ -114,6 +120,22 @@
             border-radius: 0.375rem;
         }
     </style>
+
+    <div id="custom-alert" class="fixed top-4 right-4 max-w-sm bg-white border border-gray-200 rounded-lg shadow-lg transform transition-all duration-300 translate-x-full opacity-0">
+        <div class="flex p-4">
+            <div class="flex-shrink-0" id="alert-icon">
+                <!-- Ícone será inserido via JavaScript -->
+            </div>
+            <div class="ml-3">
+                <p class="text-sm font-medium" id="alert-message"></p>
+            </div>
+            <button class="ml-4" onclick="hideAlert()">
+                <svg class="h-5 w-5 text-gray-400 hover:text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                </svg>
+            </button>
+        </div>
+    </div>
 
     <script>
         document.addEventListener("DOMContentLoaded", function () {
@@ -278,10 +300,10 @@
                     await atualizarTabela();
                     await atualizarTabelaServicos();
                     
-                    alert("Itens adicionados com sucesso!");
+                    showAlert("Itens adicionados com sucesso!");
                 } catch (error) {
                     console.error('Erro:', error);
-                    alert(error.message);
+                    showAlert(error.message, 'error');
                 }
             });
 
@@ -317,12 +339,12 @@
                     })
                     .then(response => response.json())
                     .then(() => {
-                        alert("Gasto atualizado com sucesso!");
+                        showAlert("Gasto atualizado com sucesso!");
                         atualizarTabela();
                     })
                     .catch(error => {
                         console.error('Erro:', error);
-                        alert("Erro ao atualizar o gasto!");
+                        showAlert("Erro ao atualizar o gasto!", 'error');
                     });
                 }
 
@@ -335,12 +357,12 @@
                             if (!response.ok) {
                                 throw new Error('Erro ao remover gasto');
                             }
-                            alert("Gasto removido com sucesso!");
+                            showAlert("Gasto removido com sucesso!");
                             atualizarTabela();
                         })
                         .catch(error => {
                             console.error('Erro:', error);
-                            alert("Erro ao remover o gasto!");
+                            showAlert("Erro ao remover o gasto!", 'error');
                         });
                     }
                 }
@@ -372,12 +394,12 @@
                     })
                     .then(response => response.json())
                     .then(() => {
-                        alert("Serviço atualizado com sucesso!");
+                        showAlert("Serviço atualizado com sucesso!");
                         atualizarTabelaServicos();
                     })
                     .catch(error => {
                         console.error('Erro:', error);
-                        alert("Erro ao atualizar o serviço!");
+                        showAlert("Erro ao atualizar o serviço!", 'error');
                     });
                 }
 
@@ -390,12 +412,12 @@
                             if (!response.ok) {
                                 throw new Error('Erro ao remover serviço');
                             }
-                            alert("Serviço removido com sucesso!");
+                            showAlert("Serviço removido com sucesso!");
                             atualizarTabelaServicos();
                         })
                         .catch(error => {
                             console.error('Erro:', error);
-                            alert("Erro ao remover o serviço!");
+                            showAlert("Erro ao remover o serviço!", 'error');
                         });
                     }
                 }
@@ -405,6 +427,41 @@
             atualizarTabela();
             atualizarTabelaServicos();
         });
+
+        function showAlert(message, type = 'success') {
+            const alertElement = document.getElementById('custom-alert');
+            const messageElement = document.getElementById('alert-message');
+            const iconElement = document.getElementById('alert-icon');
+            
+            // Definir ícone e cores baseado no tipo
+            let iconSvg = '';
+            let bgColor = '';
+            
+            if (type === 'success') {
+                iconSvg = `<svg class="h-6 w-6 text-green-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>`;
+                bgColor = 'bg-green-50';
+            } else {
+                iconSvg = `<svg class="h-6 w-6 text-red-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>`;
+                bgColor = 'bg-red-50';
+            }
+            
+            iconElement.innerHTML = iconSvg;
+            messageElement.textContent = message;
+            alertElement.classList.remove('translate-x-full', 'opacity-0');
+            alertElement.classList.add(bgColor);
+            
+            // Esconder o alerta após 3 segundos
+            setTimeout(hideAlert, 3000);
+        }
+
+        function hideAlert() {
+            const alertElement = document.getElementById('custom-alert');
+            alertElement.classList.add('translate-x-full', 'opacity-0');
+        }
     </script>
 
 
