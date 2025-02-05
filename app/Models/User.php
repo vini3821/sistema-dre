@@ -21,6 +21,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'profile_photo',
     ];
 
     /**
@@ -47,4 +48,5 @@ class User extends Authenticatable
     {
         return $this->belongsTo(Setor::class);
     }
+    
 }

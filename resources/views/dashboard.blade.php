@@ -6,12 +6,46 @@
 <x-app-layout>
     <x-slot name="header">
         <div class="flex items-center justify-between">
-            <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-                {{ __('Sistema DRE') }} 
-                <span class="ml-2 px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">
-                    Setor: {{ $sectorName }}
-                </span>
-            </h2>
+            <div class="flex items-center space-x-4">
+                <div class="relative group">
+                    <div class="w-12 h-12 rounded-full overflow-hidden bg-gray-200 border-2 border-gray-300 hover:border-blue-500 transition-all duration-200">
+                        @if(Auth::user()->profile_photo)
+                            <img src="{{ Storage::url(Auth::user()->profile_photo) }}" 
+                                 alt="Foto de perfil" 
+                                 class="w-full h-full object-cover">
+                        @else
+                            <div class="w-full h-full flex items-center justify-center bg-gray-200 text-gray-400">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                          d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                </svg>
+                            </div>
+                        @endif
+                        
+                        <label for="profile_photo" 
+                               class="absolute inset-0 w-full h-full bg-black bg-opacity-40 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity duration-200">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                      d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                                      d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                        </label>
+                        <input type="file" 
+                               id="profile_photo" 
+                               name="profile_photo" 
+                               accept="image/*" 
+                               class="hidden" 
+                               onchange="uploadProfilePhoto(this)">
+                    </div>
+                </div>
+                <h2 class="font-semibold text-xl text-gray-800 leading-tight">
+                    {{ __('Sistema DRE') }}
+                    <span class="ml-2 px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-sm">
+                        Setor: {{ $sectorName }}
+                    </span>
+                </h2>
+            </div>
         </div>
     </x-slot>
 
@@ -33,11 +67,20 @@
                     </select>
                 </div>
 
-                <!-- Botão Adicionar (único) -->
-                <div class="flex justify-end mb-4">
-                    <button id="add-item" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transform transition-all duration-200 hover:scale-105">
-                        Adicionar
-                    </button>
+                <!-- Botões e Total -->
+                <div class="flex justify-between items-center mb-4">
+                    <div class="flex items-center space-x-4">
+                        <span class="text-gray-700 font-medium">Total de Gastos:</span>
+                        <span id="total-gastos" class="bg-gray-100 px-4 py-2 rounded-md font-semibold text-gray-800">R$ 0,00</span>
+                    </div>
+                    <div class="flex space-x-4">
+                        <button id="calcular-total" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transform transition-all duration-200 hover:scale-105">
+                            Calcular Total
+                        </button>
+                        <button id="add-item" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transform transition-all duration-200 hover:scale-105">
+                            Adicionar
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Layout flexível para tabelas lado a lado -->
@@ -423,6 +466,25 @@
                 }
             });
 
+            // Adicionar função para calcular total
+            document.getElementById('calcular-total').addEventListener('click', function() {
+                const inputs = document.querySelectorAll('#tabela-gastos input[type="number"]');
+                let total = 0;
+                
+                inputs.forEach(input => {
+                    total += parseFloat(input.value) || 0;
+                });
+                
+                // Formatar o número para moeda brasileira
+                const totalFormatado = total.toLocaleString('pt-BR', {
+                    style: 'currency',
+                    currency: 'BRL'
+                });
+                
+                document.getElementById('total-gastos').textContent = totalFormatado;
+                showAlert("Total calculado com sucesso!");
+            });
+
             // Carregar dados iniciais
             atualizarTabela();
             atualizarTabelaServicos();
@@ -462,7 +524,45 @@
             const alertElement = document.getElementById('custom-alert');
             alertElement.classList.add('translate-x-full', 'opacity-0');
         }
-    </script>
 
+        function uploadProfilePhoto(input) {
+            if (input.files && input.files[0]) {
+                const formData = new FormData();
+                formData.append('profile_photo', input.files[0]);
+                
+                fetch('/update-profile-photo', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    },
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const photoContainer = input.closest('.relative').querySelector('img, div');
+                        if (data.url) {
+                            // Se não existe uma img, criar uma
+                            if (!photoContainer.tagName === 'IMG') {
+                                const newImg = document.createElement('img');
+                                newImg.className = 'w-full h-full object-cover';
+                                newImg.alt = 'Foto de perfil';
+                                photoContainer.parentNode.replaceChild(newImg, photoContainer);
+                                photoContainer = newImg;
+                            }
+                            photoContainer.src = URL.createObjectURL(input.files[0]);
+                        }
+                        showAlert('Foto de perfil atualizada com sucesso!');
+                    } else {
+                        throw new Error(data.message || 'Erro ao atualizar foto');
+                    }
+                })
+                .catch(error => {
+                    console.error('Erro:', error);
+                    showAlert(error.message || 'Erro ao atualizar foto de perfil', 'error');
+                });
+            }
+        }
+    </script>
 
 </x-app-layout>
