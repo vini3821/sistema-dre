@@ -10,7 +10,7 @@ return new class extends Migration {
      */
     public function up()
     {
-        Schema::create('sectors', function (Blueprint $table) {
+        Schema::create('setors', function (Blueprint $table) {
             $table->id();
             $table->string('name'); // Nome do setor (Financeiro, Assessoria, etc.)
             $table->float('monthly_budget')->default(0); // Orçamento mensal
@@ -25,6 +25,6 @@ return new class extends Migration {
      */
     public function down(): void
     {
-        Schema::dropIfExists('sectors');
+        Schema::dropIfExists('setors');
     }
 };
